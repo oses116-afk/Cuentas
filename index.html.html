@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis Cuentas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1d6b52">
+<meta name="referrer" content="no-referrer">
+<title>Mis Cuentas</title>
+<style>
+/* Layout: total general arriba, resumen por banco/tipo/uso, y debajo la planilla (columnas A-E, filas numeradas) con banco fijo al desplazar. */
+:root {
+  --bg: #f3f6f4;
+  color-scheme: light;
+  --paper: #ffffff;
+  --fg: #17211c;
+  --muted: #5d6b64;
+  --grid: #d3dcd7;
+  --head: #e7eeea;
+  --accent: #1d6b52;
+  --accent-fg: #ffffff;
+  --bar: #a9cdbd;
+  --neg: #b3361f;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1411; --paper: #151d19; --fg: #e3ece7; --muted: #8b9a92;
+    --grid: #2a3630; --head: #1c2621; --accent: #5fcf9f; --accent-fg: #08150f; --bar: #2f5a49; --neg: #ff8d78;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1411; --paper: #151d19; --fg: #e3ece7; --muted: #8b9a92;
+  --grid: #2a3630; --head: #1c2621; --accent: #5fcf9f; --accent-fg: #08150f; --bar: #2f5a49; --neg: #ff8d78;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; padding-inline: 16px; padding-block: calc(20px + env(safe-area-inset-top, 0px)) calc(96px + env(safe-area-inset-bottom, 0px)); }
+.wrap { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+.status { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.status[data-s="error"] { color: var(--neg); }
+.eye { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-inline: 12px; border: 1px solid var(--grid); background: var(--paper); color: var(--fg); border-radius: 8px; font: 500 14px var(--sans); cursor: pointer; }
+.eye svg { width: 18px; height: 18px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.summary { background: var(--paper); border: 1px solid var(--grid); border-radius: 8px; overflow: hidden; }
+.grand { padding: 16px; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--grid); }
+.grand span { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.grand b { font: 500 32px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
+.grand b.neg { color: var(--neg); }
+.grand small { font-size: 13px; color: var(--muted); }
+.tabs { display: flex; background: var(--head); }
+.tabs button { flex: 1; min-height: 44px; border: 0; background: transparent; color: var(--muted); font: 500 14px var(--sans); cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--fg); background: var(--paper); border-bottom-color: var(--accent); font-weight: 600; }
+.groups { list-style: none; margin: 0; padding: 0; }
+.groups li { padding: 10px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; border-top: 1px solid var(--grid); }
+.groups li:first-child { border-top: 0; }
+.g-name { font-weight: 500; overflow-wrap: anywhere; }
+.g-name small { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.g-amt { font: 500 16px var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.g-amt.neg { color: var(--neg); }
+.g-bar { grid-column: 1 / -1; height: 4px; background: var(--head); border-radius: 2px; overflow: hidden; }
+.g-bar i { display: block; height: 100%; background: var(--bar); border-radius: 2px; }
+.groups .none { display: block; color: var(--muted); font-size: 14px; }
+
+.note { font-size: 13px; color: var(--muted); background: var(--head); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.note button { min-height: 36px; border: 0; background: transparent; color: var(--accent); font: 600 13px var(--sans); cursor: pointer; padding-inline: 8px; }
+
+.adder { background: var(--paper); border: 1px solid var(--grid); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.adder h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.adder label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.adder label span { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.adder input, .adder select { height: 46px; box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--grid); border-radius: 8px; background: var(--bg); color: var(--fg); font: 400 16px var(--sans); padding-inline: 10px; }
+.a-bankline { display: flex; gap: 8px; align-items: flex-end; }
+.a-bankline label { flex: 1; }
+.a-other { min-height: 46px; padding-inline: 12px; border: 1px solid var(--grid); background: var(--head); color: var(--fg); border-radius: 8px; font: 500 14px var(--sans); cursor: pointer; white-space: nowrap; }
+.a-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 36px; padding-inline: 12px; border: 1px solid var(--grid); background: var(--head); color: var(--fg); border-radius: 999px; font: 500 13px var(--sans); cursor: pointer; }
+.a-go { min-height: 48px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-fg); font: 600 16px var(--sans); cursor: pointer; }
+.a-msg { margin: 0; font-size: 13px; color: var(--muted); min-height: 1.2em; }
+.hide #a-amt { -webkit-text-security: disc; text-security: disc; }
+.sheet { overflow-x: auto; border: 1px solid var(--grid); border-radius: 8px; background: var(--paper); }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 690px; table-layout: fixed; }
+th, td { border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); padding: 0; }
+tr > :last-child { border-right: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+th { background: var(--head); color: var(--muted); font: 500 12px var(--mono); height: 28px; text-align: center; }
+th.lbl { padding-inline: 8px; font-family: var(--sans); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; }
+th.r { text-align: right; } th.c { text-align: center; }
+td.rn { background: var(--head); color: var(--muted); font: 500 12px var(--mono); text-align: center; }
+.sticky1 { position: sticky; left: 0; z-index: 2; }
+.sticky2 { position: sticky; left: 30px; z-index: 2; box-shadow: 1px 0 0 var(--grid); }
+td.bank { background: var(--paper); }
+td input, td select { width: 100%; height: 46px; border: 0; background: transparent; color: var(--fg); font: 400 16px var(--sans); padding-inline: 8px; border-radius: 0; box-sizing: border-box; text-overflow: ellipsis; }
+td select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+td select.empty { color: var(--muted); }
+td input.amt { font: 400 16px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+td input.amt.neg { color: var(--neg); }
+.hide td input.amt { -webkit-text-security: disc; text-security: disc; }
+td.date { font: 400 12px var(--mono); color: var(--muted); text-align: center; padding-inline: 2px; white-space: nowrap; }
+td.del button { width: 44px; height: 46px; border: 0; background: transparent; color: var(--muted); font-size: 20px; cursor: pointer; }
+td.del button:hover { color: var(--neg); }
+tr.add td { background: var(--paper); border-bottom: 0; }
+tr.add button { position: sticky; left: 0; width: min(100%, 220px); min-height: 48px; border: 0; background: transparent; color: var(--accent); font: 600 15px var(--sans); text-align: left; padding-inline: 12px; cursor: pointer; }
+
+.toast { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 420px; margin-inline: auto; background: var(--fg); color: var(--bg); border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; z-index: 5; }
+.toast button { border: 0; background: transparent; color: inherit; font: 600 14px var(--sans); text-decoration: underline; min-height: 36px; cursor: pointer; }
+.backup { display: flex; flex-wrap: wrap; gap: 8px; }
+.backup button { min-height: 44px; padding-inline: 14px; border: 1px solid var(--grid); background: var(--paper); color: var(--fg); border-radius: 8px; font: 500 14px var(--sans); cursor: pointer; }
+.foot { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header>
+    <div>
+      <h1>Mis Cuentas</h1>
+      <div class="status" id="status" data-s="load">Cargando…</div>
+    </div>
+    <button class="eye" id="eye" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="eyeTxt">Ocultar montos</span>
+    </button>
+  </header>
+
+  <section class="summary" aria-label="Totales">
+    <div class="grand">
+      <span>Total general</span>
+      <b id="grand">$ 0</b>
+      <small id="count"></small>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" data-tab="bank" aria-selected="true">Por banco</button>
+      <button type="button" role="tab" data-tab="type" aria-selected="false">Por tipo</button>
+      <button type="button" role="tab" data-tab="use" aria-selected="false">Por uso</button>
+    </div>
+    <ul class="groups" id="groups"></ul>
+  </section>
+
+  <div class="note" id="note" hidden>
+    <span>Estas filas son de ejemplo. Cámbialas por tus cuentas.</span>
+    <button type="button" id="clearEx">Vaciar</button>
+  </div>
+
+  <form class="adder" id="adder" autocomplete="off">
+    <h2>Agregar cuentas</h2>
+    <div class="a-bankline">
+      <label><span>Banco o entidad</span><input id="a-bank" type="text" list="dl-bank" placeholder="Ej. Banco de Chile"></label>
+      <button type="button" class="a-other" id="a-other">Otro banco</button>
+    </div>
+    <div class="chips" id="a-chips" hidden></div>
+    <div class="a-row">
+      <label><span>Tipo de cuenta</span><select id="a-type"></select></label>
+      <label><span>Uso del dinero</span><input id="a-use" type="text" list="dl-use" placeholder="Opcional"></label>
+      <label><span>Monto (CLP)</span><input id="a-amt" type="text" inputmode="numeric" placeholder="0"></label>
+    </div>
+    <button type="submit" class="a-go">Agregar cuenta</button>
+    <p class="a-msg" id="a-msg" aria-live="polite"></p>
+  </form>
+
+  <div class="sheet" id="sheet">
+    <table id="grid">
+      <colgroup><col style="width:30px"><col style="width:150px"><col style="width:150px"><col style="width:140px"><col style="width:130px"><col style="width:62px"><col style="width:44px"></colgroup>
+      <thead>
+        <tr><th class="sticky1"></th><th class="sticky2">A</th><th>B</th><th>C</th><th>D</th><th>E</th><th></th></tr>
+        <tr>
+          <th class="sticky1"></th>
+          <th class="lbl sticky2">Banco o entidad</th>
+          <th class="lbl">Tipo de cuenta</th>
+          <th class="lbl">Uso del dinero</th>
+          <th class="lbl r">Monto (CLP)</th>
+          <th class="lbl c">Al</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="backup">
+    <button type="button" id="exCsv">Exportar a Excel (CSV)</button>
+    <button type="button" id="exJson">Guardar copia</button>
+    <button type="button" id="imJson">Restaurar copia</button>
+    <input type="file" id="imFile" accept="application/json,.json" hidden>
+  </div>
+
+  <p class="foot">Todo en pesos chilenos. Los datos se guardan solo en este teléfono: no se envían a ningún lado ni hay conexión con bancos. Guarda una copia de vez en cuando, porque si borras los datos del navegador se pierden.</p>
+</div>
+
+<datalist id="dl-bank">
+  <option value="Banco Estado"><option value="Banco de Chile"><option value="Banco Santander"><option value="BCI"><option value="Scotiabank"><option value="Banco Itaú"><option value="Banco Falabella"><option value="Banco Ripley"><option value="Banco Security"><option value="Banco BICE"><option value="Banco Consorcio"><option value="Coopeuch"><option value="Tenpo"><option value="Mach"><option value="Mercado Pago"><option value="Efectivo">
+</datalist>
+<datalist id="dl-use">
+  <option value="Gastos diarios"><option value="Arriendo y cuentas"><option value="Ahorro"><option value="Emergencias"><option value="Inversión"><option value="Vacaciones"><option value="Deudas y créditos"><option value="Impuestos">
+</datalist>
+
+<div class="toast" id="toast" hidden><span id="toastTxt"></span><button type="button" id="undo">Deshacer</button></div>
+
+<script>
+(function () {
+  var TYPES = ["Cuenta corriente", "Cuenta vista", "Cuenta RUT", "Cuenta de ahorro", "Depósito a plazo", "Fondo mutuo o inversión", "Billetera digital", "Efectivo", "Otra"];
+  var LS_DATA = "mis-cuentas-v1", LS_HIDE = "mis-cuentas-hide";
+  var state = { rows: [], example: false };
+  var ref = null, timer = null, saving = false, again = false, lastUpdated = 0, undoRow = null, toastTimer = null, hidden = false, tab = "bank";
+
+  function $(id) { return document.getElementById(id); }
+  function newId() { return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function today() { var d = new Date(); var p = function (n) { return (n < 10 ? "0" : "") + n; }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+  function fmtDate(iso) {
+    if (!iso) return "";
+    var a = iso.split("-"); if (a.length !== 3) return "";
+    return new Date(+a[0], +a[1] - 1, +a[2]).toLocaleDateString("es-CL", { day: "numeric", month: "short" }).replace(".", "");
+  }
+  var nf = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
+  function fmt(n) { return (typeof n === "number" && !isNaN(n)) ? nf.format(n) : ""; }
+  function money(n) { return (n < 0 ? "-$ " : "$ ") + nf.format(Math.abs(n)); }
+  function parse(s) {
+    s = String(s).trim().replace(/[^\d.,-]/g, "");
+    if (!s) return null;
+    if (s.indexOf(",") > -1) s = s.replace(/\./g, "").replace(",", ".");
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    var n = parseFloat(s);
+    return isNaN(n) ? null : Math.round(n);
+  }
+  // Acepta el formato anterior (name, cur) y lo pasa al nuevo.
+  function norm(r) {
+    return {
+      id: r.id || newId(),
+      bank: r.bank !== undefined ? r.bank : (r.name || ""),
+      type: r.type || "",
+      use: r.use || "",
+      amt: typeof r.amt === "number" ? r.amt : null,
+      date: r.date || ""
+    };
+  }
+  function examples() {
+    return [
+      { id: newId(), bank: "Banco Estado", type: "Cuenta RUT", use: "Gastos diarios", amt: 350000, date: today() },
+      { id: newId(), bank: "Banco de Chile", type: "Cuenta corriente", use: "Arriendo y cuentas", amt: 850000, date: today() },
+      { id: newId(), bank: "Banco de Chile", type: "Cuenta de ahorro", use: "Emergencias", amt: 2300000, date: today() },
+      { id: newId(), bank: "Banco Santander", type: "Fondo mutuo o inversión", use: "Inversión", amt: 1200000, date: today() }
+    ];
+  }
+
+  function setStatus(s) {
+    var el = $("status"); el.dataset.s = s;
+    el.textContent = ({
+      load: "Cargando…",
+      saving: "Guardando…",
+      saved: "Guardado en tu cuenta",
+      local: "Guardado solo en este teléfono",
+      error: "No se pudo guardar. Reintenta en un momento."
+    })[s] || "";
+  }
+
+  function lsSave() { try { if (!state.example) localStorage.setItem(LS_DATA, JSON.stringify(state.rows)); } catch (e) {} }
+  function lsLoad() { try { var v = JSON.parse(localStorage.getItem(LS_DATA) || "null"); return Array.isArray(v) ? v.map(norm) : null; } catch (e) { return null; } }
+
+  function schedule() {
+    if (state.example) { state.example = false; $("note").hidden = true; }
+    lsSave();
+    setStatus(ref ? "saving" : "local");
+    clearTimeout(timer);
+    timer = setTimeout(flush, 600);
+  }
+  async function flush() {
+    if (!ref) return;
+    if (saving) { again = true; return; }
+    saving = true;
+    try {
+      do {
+        again = false;
+        var payload = { rows: JSON.parse(JSON.stringify(state.rows)), updated: Date.now() };
+        lastUpdated = payload.updated;
+        await ref.set(payload);
+      } while (again);
+      setStatus("saved");
+    } catch (e) { setStatus("error"); }
+    saving = false;
+  }
+
+  var EMPTY_LABEL = { bank: "Sin banco", type: "Sin tipo de cuenta", use: "Sin uso asignado" };
+  function renderTotals() {
+    var total = 0, n = 0;
+    state.rows.forEach(function (r) { if (typeof r.amt === "number") { total += r.amt; n++; } });
+    var g = $("grand");
+    g.textContent = hidden ? "$ ••••••" : money(total);
+    g.className = (!hidden && total < 0) ? "neg" : "";
+    $("count").textContent = n + (n === 1 ? " cuenta con monto" : " cuentas con monto");
+
+    var map = {}, order = [];
+    state.rows.forEach(function (r) {
+      if (typeof r.amt !== "number") return;
+      var label = (r[tab] || "").trim(), key = label.toLowerCase();
+      if (!(key in map)) { map[key] = { label: label || EMPTY_LABEL[tab], sum: 0, count: 0 }; order.push(key); }
+      map[key].sum += r.amt; map[key].count++;
+    });
+    var list = order.map(function (k) { return map[k]; }).sort(function (a, b) { return b.sum - a.sum; });
+    var ul = $("groups"); ul.textContent = "";
+    if (!list.length) {
+      var e = document.createElement("li"); e.className = "none"; e.textContent = "Anota un monto para ver el resumen.";
+      ul.appendChild(e); return;
+    }
+    var maxAbs = Math.max.apply(null, list.map(function (x) { return Math.abs(x.sum); })) || 1;
+    list.forEach(function (x) {
+      var li = document.createElement("li");
+      var nm = document.createElement("div"); nm.className = "g-name"; nm.textContent = x.label;
+      var sm = document.createElement("small"); sm.textContent = x.count + (x.count === 1 ? " cuenta" : " cuentas"); nm.appendChild(sm);
+      var am = document.createElement("div"); am.className = "g-amt" + (!hidden && x.sum < 0 ? " neg" : ""); am.textContent = hidden ? "••••••" : money(x.sum);
+      li.appendChild(nm); li.appendChild(am);
+      if (!hidden) {
+        var bar = document.createElement("div"); bar.className = "g-bar";
+        var i = document.createElement("i"); i.style.width = Math.max(2, Math.round(Math.abs(x.sum) / maxAbs * 100)) + "%";
+        bar.appendChild(i); li.appendChild(bar);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  function mkInput(r, f, label, ph, list) {
+    var td = document.createElement("td"), inp = document.createElement("input");
+    inp.type = "text"; inp.value = r[f] || ""; inp.dataset.f = f; inp.placeholder = ph;
+    inp.setAttribute("aria-label", label); inp.autocomplete = "off";
+    if (list) inp.setAttribute("list", list);
+    td.appendChild(inp); return td;
+  }
+
+  function render() {
+    var tb = $("rows"); tb.textContent = "";
+    state.rows.forEach(function (r, i) {
+      var tr = document.createElement("tr"); tr.dataset.id = r.id;
+      var rn = document.createElement("td"); rn.className = "rn sticky1"; rn.textContent = i + 1; tr.appendChild(rn);
+
+      var tb1 = mkInput(r, "bank", "Banco o entidad, fila " + (i + 1), "Banco o entidad", "dl-bank");
+      tb1.className = "bank sticky2"; tr.appendChild(tb1);
+
+      var tt = document.createElement("td"), sel = document.createElement("select");
+      sel.dataset.f = "type"; sel.setAttribute("aria-label", "Tipo de cuenta, fila " + (i + 1));
+      var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Tipo de cuenta"; sel.appendChild(o0);
+      var list = TYPES.slice(); if (r.type && list.indexOf(r.type) < 0) list.push(r.type);
+      list.forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = t; if (t === r.type) o.selected = true; sel.appendChild(o); });
+      sel.className = r.type ? "" : "empty";
+      tt.appendChild(sel); tr.appendChild(tt);
+
+      tr.appendChild(mkInput(r, "use", "Uso del dinero, fila " + (i + 1), "Uso del dinero", "dl-use"));
+
+      var ta = document.createElement("td"), am = document.createElement("input");
+      am.type = "text"; am.inputMode = "numeric"; am.className = "amt"; am.dataset.f = "amt"; am.placeholder = "0";
+      am.setAttribute("aria-label", "Monto en pesos, fila " + (i + 1)); am.autocomplete = "off";
+      am.value = fmt(r.amt); if (typeof r.amt === "number" && r.amt < 0) am.classList.add("neg");
+      ta.appendChild(am); tr.appendChild(ta);
+
+      var td = document.createElement("td"); td.className = "date"; td.textContent = fmtDate(r.date); tr.appendChild(td);
+
+      var tx = document.createElement("td"); tx.className = "del";
+      var b = document.createElement("button"); b.type = "button"; b.dataset.f = "del"; b.textContent = "×"; b.setAttribute("aria-label", "Eliminar fila " + (i + 1));
+      tx.appendChild(b); tr.appendChild(tx);
+      tb.appendChild(tr);
+    });
+    var add = document.createElement("tr"); add.className = "add";
+    var c = document.createElement("td"); c.colSpan = 7;
+    var ab = document.createElement("button"); ab.type = "button"; ab.id = "addRow"; ab.textContent = "+ Agregar cuenta";
+    c.appendChild(ab); add.appendChild(c); tb.appendChild(add);
+    $("note").hidden = !state.example;
+    renderTotals(); renderChips();
+  }
+
+  function rowOf(el) { var tr = el.closest("tr[data-id]"); if (!tr) return null; var id = tr.dataset.id; return { tr: tr, r: state.rows.filter(function (x) { return x.id === id; })[0] }; }
+
+  $("grid").addEventListener("input", function (e) {
+    var f = e.target.dataset.f, o = rowOf(e.target); if (!o || !o.r) return;
+    if (f === "bank" || f === "use") o.r[f] = e.target.value;
+    else if (f === "amt") {
+      o.r.amt = parse(e.target.value); o.r.date = today();
+      e.target.classList.toggle("neg", typeof o.r.amt === "number" && o.r.amt < 0);
+      o.tr.querySelector(".date").textContent = fmtDate(o.r.date);
+    } else return;
+    if (f === "bank") renderChips();
+    renderTotals(); schedule();
+  });
+  $("grid").addEventListener("change", function (e) {
+    if (e.target.dataset.f !== "type") return;
+    var o = rowOf(e.target); if (!o || !o.r) return;
+    o.r.type = e.target.value; e.target.className = o.r.type ? "" : "empty";
+    renderTotals(); schedule();
+  });
+  $("grid").addEventListener("focusout", function (e) {
+    if (e.target.dataset.f !== "amt") return;
+    var o = rowOf(e.target); if (!o || !o.r) return;
+    e.target.value = fmt(o.r.amt);
+  });
+  $("grid").addEventListener("focusin", function (e) {
+    if (e.target.dataset.f === "amt") setTimeout(function () { try { e.target.select(); } catch (x) {} }, 0);
+  });
+  $("grid").addEventListener("click", function (e) {
+    if (e.target.id === "addRow") {
+      var r = { id: newId(), bank: "", type: "", use: "", amt: null, date: "" };
+      state.rows.push(r); render(); schedule();
+      var inp = $("rows").querySelector('tr[data-id="' + r.id + '"] input'); if (inp) inp.focus();
+      return;
+    }
+    if (e.target.dataset.f === "del") {
+      var o = rowOf(e.target); if (!o || !o.r) return;
+      var idx = state.rows.indexOf(o.r);
+      undoRow = { row: o.r, idx: idx };
+      state.rows.splice(idx, 1); render(); schedule(); showToast("Fila eliminada");
+    }
+  });
+  $("undo").addEventListener("click", function () {
+    if (!undoRow) return;
+    state.rows.splice(Math.min(undoRow.idx, state.rows.length), 0, undoRow.row);
+    undoRow = null; $("toast").hidden = true; render(); schedule();
+  });
+  function showToast(t) {
+    $("toastTxt").textContent = t; $("toast").hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { $("toast").hidden = true; undoRow = null; }, 6000);
+  }
+  $("clearEx").addEventListener("click", function () {
+    state.rows = [{ id: newId(), bank: "", type: "", use: "", amt: null, date: "" }]; state.example = true; schedule(); render();
+  });
+  $("tabs").addEventListener("click", function (e) {
+    var t = e.target.dataset && e.target.dataset.tab; if (!t) return;
+    tab = t;
+    Array.prototype.forEach.call($("tabs").children, function (b) { b.setAttribute("aria-selected", String(b.dataset.tab === tab)); });
+    renderTotals();
+  });
+
+  function applyHide() {
+    document.body.classList.toggle("hide", hidden);
+    $("eye").setAttribute("aria-pressed", String(hidden));
+    $("eyeTxt").textContent = hidden ? "Mostrar montos" : "Ocultar montos";
+    renderTotals();
+  }
+  $("eye").addEventListener("click", function () {
+    hidden = !hidden; try { localStorage.setItem(LS_HIDE, hidden ? "1" : "0"); } catch (e) {}
+    applyHide();
+  });
+
+
+  function download(name, type, text) {
+    var blob = new Blob([text], { type: type }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function q(v) { v = String(v == null ? "" : v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  $("exCsv").addEventListener("click", function () {
+    var lines = ["Banco o entidad,Tipo de cuenta,Uso del dinero,Monto (CLP),Actualizado"];
+    state.rows.forEach(function (r) { lines.push([q(r.bank), q(r.type), q(r.use), r.amt == null ? "" : r.amt, q(r.date)].join(",")); });
+    download("mis-cuentas-" + today() + ".csv", "text/csv;charset=utf-8", "\ufeff" + lines.join("\n"));
+  });
+  $("exJson").addEventListener("click", function () {
+    download("mis-cuentas-copia-" + today() + ".json", "application/json", JSON.stringify({ rows: state.rows }, null, 2));
+  });
+  $("imJson").addEventListener("click", function () { $("imFile").click(); });
+  $("imFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var d = JSON.parse(fr.result), rows = Array.isArray(d) ? d : d.rows;
+        if (!Array.isArray(rows)) throw 0;
+        state = { rows: rows.map(norm), example: false }; render(); schedule();
+      } catch (x) { showToast("Ese archivo no es una copia válida"); $("undo").hidden = true; setTimeout(function () { $("undo").hidden = false; }, 6000); }
+      e.target.value = "";
+    };
+    fr.readAsText(f);
+  });
+
+  var LS_BANK = "mis-cuentas-lastbank";
+  (function () {
+    var s = $("a-type"), o = document.createElement("option"); o.value = ""; o.textContent = "Elegir tipo"; s.appendChild(o);
+    TYPES.forEach(function (t) { var x = document.createElement("option"); x.value = t; x.textContent = t; s.appendChild(x); });
+  })();
+  function renderChips() {
+    var box = $("a-chips"); box.textContent = "";
+    if (!state.example) {
+      var seen = {};
+      state.rows.forEach(function (r) {
+        var b = (r.bank || "").trim(), k = b.toLowerCase();
+        if (!b || seen[k]) return; seen[k] = 1;
+        var btn = document.createElement("button"); btn.type = "button"; btn.className = "chip"; btn.textContent = b;
+        btn.addEventListener("click", function () { $("a-bank").value = b; $("a-type").focus(); });
+        box.appendChild(btn);
+      });
+    }
+    box.hidden = !box.children.length;
+  }
+  $("adder").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var bank = $("a-bank").value.trim(), type = $("a-type").value, use = $("a-use").value.trim(), amt = parse($("a-amt").value), msg = $("a-msg");
+    if (!bank) { msg.textContent = "Escribe primero el banco o entidad."; $("a-bank").focus(); return; }
+    if (!type && amt === null) { msg.textContent = "Elige el tipo de cuenta o anota un monto."; return; }
+    if (state.example) { state.rows = []; state.example = false; }
+    state.rows.push({ id: newId(), bank: bank, type: type, use: use, amt: amt, date: amt === null ? "" : today() });
+    try { localStorage.setItem(LS_BANK, bank); } catch (x) {}
+    render(); schedule();
+    $("a-type").value = ""; $("a-use").value = ""; $("a-amt").value = "";
+    msg.textContent = "Agregada en " + bank + ". Anota otra cuenta del mismo banco o toca “Otro banco”.";
+    $("a-type").focus();
+  });
+  $("a-other").addEventListener("click", function () { $("a-bank").value = ""; $("a-msg").textContent = ""; $("a-bank").focus(); });
+  $("a-amt").addEventListener("blur", function (e) { var n = parse(e.target.value); e.target.value = n === null ? "" : fmt(n); });
+  $("a-amt").addEventListener("focus", function (e) { setTimeout(function () { try { e.target.select(); } catch (x) {} }, 0); });
+
+  // Arranque: primero lo que hay en este navegador, luego el guardado de la cuenta.
+  try { hidden = localStorage.getItem(LS_HIDE) === "1"; } catch (e) {}
+  var local = lsLoad();
+  if (local && local.length) state = { rows: local, example: false };
+  else state = { rows: examples(), example: true };
+  try { $("a-bank").value = localStorage.getItem(LS_BANK) || ""; } catch (e) {}
+  render(); applyHide(); setStatus("local");
+
+})();
+</script>
+</body>
+</html>
