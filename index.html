@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mis Cuentas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1d5fd8">
+<meta name="referrer" content="no-referrer">
+<title>Mis Cuentas</title>
+<style>
+/* Layout: encabezado, tres pestañas (Cuentas, Resumen, Ajustes). Cuentas = formulario plegable + planilla agrupada por banco. */
+:root {
+  color-scheme: light;
+  --bg: #f2f6fd;
+  --paper: #ffffff;
+  --fg: #0f1d38;
+  --muted: #55658a;
+  --grid: #d3ddf0;
+  --head: #e8eefa;
+  --accent: #1d5fd8;
+  --accent-fg: #ffffff;
+  --bar: #a8c3f4;
+  --neg: #c0392b;
+  --c1: #1d5fd8; --c2: #4a86ee; --c3: #7aa8f5; --c4: #0f3b94; --c5: #a8c3f4; --c6: #8a99b8;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1426; --paper: #111d36; --fg: #e6edfb; --muted: #8fa3c8;
+    --grid: #243455; --head: #172646; --accent: #6ea2ff; --accent-fg: #07122a; --bar: #2c4a85; --neg: #ff8d78;
+    --c1: #6ea2ff; --c2: #4a86ee; --c3: #2f67c9; --c4: #a8c3f4; --c5: #1f4aa0; --c6: #8fa3c8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1426; --paper: #111d36; --fg: #e6edfb; --muted: #8fa3c8;
+  --grid: #243455; --head: #172646; --accent: #6ea2ff; --accent-fg: #07122a; --bar: #2c4a85; --neg: #ff8d78;
+  --c1: #6ea2ff; --c2: #4a86ee; --c3: #2f67c9; --c4: #a8c3f4; --c5: #1f4aa0; --c6: #8fa3c8;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.4; -webkit-text-size-adjust: 100%;
+  padding-inline: 16px; padding-block: calc(24px + env(safe-area-inset-top, 0px)) calc(96px + env(safe-area-inset-bottom, 0px)); }
+.wrap { max-width: 780px; margin-inline: auto; display: flex; flex-direction: column; gap: 24px; }
+button { font-family: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 24px; font-weight: 650; letter-spacing: -0.01em; text-wrap: balance; }
+.status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.hbtns { display: flex; gap: 8px; }
+.eye { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding-inline: 12px; border: 1px solid var(--grid); background: var(--paper); color: var(--fg); border-radius: 10px; font: 500 14px var(--sans); cursor: pointer; white-space: nowrap; }
+.eye svg { width: 18px; height: 18px; }
+.eye.ico { padding-inline: 0; width: 44px; justify-content: center; }
+
+.mtabs { display: flex; gap: 4px; background: var(--head); padding: 4px; border-radius: 12px; }
+.mtabs button { flex: 1; min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: 500 15px var(--sans); cursor: pointer; }
+.mtabs button[aria-selected="true"] { background: var(--paper); color: var(--accent); font-weight: 650; box-shadow: 0 1px 2px rgba(15, 29, 56, 0.12); }
+.mtabs.small button { min-height: 40px; font-size: 14px; }
+
+.panel { display: flex; flex-direction: column; gap: 24px; }
+.card { background: var(--paper); border: 1px solid var(--grid); border-radius: 12px; }
+
+.mini { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 18px 20px; }
+.mini span { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.mini b { font: 500 24px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; }
+b.neg { color: var(--neg); }
+
+.adder-toggle { width: 100%; min-height: 60px; display: flex; justify-content: space-between; align-items: center; padding-inline: 20px; border: 0; background: transparent; color: var(--accent); font: 650 16px var(--sans); cursor: pointer; border-radius: 12px; }
+.adder-toggle .chev { font: 500 26px var(--mono); line-height: 1; }
+.adder-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; border-top: 1px solid var(--grid); }
+.adder-body label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.adder-body label span { font-size: 12px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.adder-body input, .adder-body select { height: 50px; width: 100%; min-width: 0; border: 1px solid var(--grid); border-radius: 10px; background: var(--bg); color: var(--fg); font: 400 16px var(--sans); padding-inline: 12px; }
+.a-bankline { display: flex; gap: 12px; align-items: flex-end; }
+.a-bankline label { flex: 1; }
+.a-other { min-height: 50px; padding-inline: 14px; border: 1px solid var(--grid); background: var(--head); color: var(--fg); border-radius: 10px; font: 500 14px var(--sans); cursor: pointer; white-space: nowrap; }
+.a-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 38px; padding-inline: 14px; border: 1px solid var(--grid); background: var(--head); color: var(--fg); border-radius: 999px; font: 500 14px var(--sans); cursor: pointer; }
+.a-go { min-height: 52px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font: 650 16px var(--sans); cursor: pointer; }
+.a-msg { margin: 0; font-size: 14px; color: var(--muted); min-height: 1.4em; }
+.hide #a-amt { -webkit-text-security: disc; text-security: disc; }
+
+.note { font-size: 14px; color: var(--muted); background: var(--head); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.note button { min-height: 40px; border: 0; background: transparent; color: var(--accent); font: 650 14px var(--sans); cursor: pointer; padding-inline: 8px; }
+
+.sheet { overflow-x: auto; border: 1px solid var(--grid); border-radius: 12px; background: var(--paper); }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; table-layout: fixed; }
+th, td { border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); padding: 0; }
+tr > :last-child { border-right: 0; }
+tbody tr:last-child td { border-bottom: 0; }
+tr.gstart > td { border-top: 10px solid var(--bg); }
+th { background: var(--head); color: var(--muted); font: 500 12px var(--mono); height: 30px; text-align: center; }
+th.lbl { padding-inline: 10px; font-family: var(--sans); font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; text-align: left; }
+th.r { text-align: right; } th.c { text-align: center; }
+td.rn { background: var(--head); color: var(--muted); font: 500 12px var(--mono); text-align: center; }
+.sticky1 { position: sticky; left: 0; z-index: 2; }
+.sticky2 { position: sticky; left: 30px; z-index: 2; box-shadow: 1px 0 0 var(--grid); }
+td.bank { background: var(--paper); }
+td input, td select { width: 100%; height: 52px; border: 0; background: transparent; color: var(--fg); font: 400 16px var(--sans); padding-inline: 10px; border-radius: 0; text-overflow: ellipsis; }
+td select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+td select.empty { color: var(--muted); }
+td input.amt { font: 400 16px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+td input.amt.neg { color: var(--neg); }
+.hide td input.amt { -webkit-text-security: disc; text-security: disc; }
+td.date { font: 400 12px var(--mono); color: var(--muted); text-align: center; padding-inline: 2px; white-space: nowrap; }
+td.del button { width: 48px; height: 52px; border: 0; background: transparent; color: var(--muted); font-size: 22px; cursor: pointer; }
+td.del button:hover { color: var(--neg); }
+tr.add td { background: var(--paper); border-bottom: 0; }
+tr.add button { position: sticky; left: 0; width: min(100%, 240px); min-height: 52px; border: 0; background: transparent; color: var(--accent); font: 650 15px var(--sans); text-align: left; padding-inline: 14px; cursor: pointer; }
+
+.grand { padding: 24px 20px; display: flex; flex-direction: column; gap: 4px; }
+.grand span { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.grand b { font: 500 34px var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; line-height: 1.15; }
+.grand small { font-size: 14px; color: var(--muted); }
+.sum-body { padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 8px; }
+.donutwrap { display: flex; justify-content: center; padding: 16px 0 8px; }
+.donutwrap svg { width: 200px; max-width: 100%; height: auto; display: block; }
+.groups { list-style: none; margin: 0; padding: 0; }
+.groups li { padding: 14px 20px; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px 12px; align-items: baseline; border-top: 1px solid var(--grid); }
+.g-dot { width: 12px; height: 12px; border-radius: 50%; align-self: center; }
+.g-name { font-weight: 550; overflow-wrap: anywhere; min-width: 0; }
+.g-name small { display: block; color: var(--muted); font-weight: 400; font-size: 13px; margin-top: 2px; }
+.g-amt { font: 500 16px var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+.g-amt small { display: block; color: var(--muted); font: 400 12px var(--sans); margin-top: 2px; }
+.g-amt.neg { color: var(--neg); }
+.g-bar { grid-column: 2 / -1; height: 6px; background: var(--head); border-radius: 3px; overflow: hidden; }
+.g-bar i { display: block; height: 100%; background: var(--bar); border-radius: 3px; }
+.groups li.none { display: block; color: var(--muted); font-size: 15px; border-top: 0; }
+
+.set { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.set h2 { margin: 0; font-size: 17px; font-weight: 650; }
+.set p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { min-height: 48px; padding-inline: 16px; border: 1px solid var(--grid); background: var(--head); color: var(--fg); border-radius: 10px; font: 500 15px var(--sans); cursor: pointer; }
+
+.toast { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 420px; margin-inline: auto; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px; z-index: 5; }
+.toast button { border: 0; background: transparent; color: inherit; font: 650 14px var(--sans); text-decoration: underline; min-height: 36px; cursor: pointer; }
+
+body.locked .wrap, body.locked .toast { display: none; }
+.lock { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: none; align-items: center; justify-content: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
+body.locked .lock { display: flex; }
+.lk-box { width: 100%; max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.lk-title { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; }
+.lk-msg { margin: 0; min-height: 1.4em; color: var(--muted); font-size: 15px; text-align: center; }
+.lk-msg.err { color: var(--neg); }
+.dots { display: flex; gap: 16px; padding-block: 4px; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent); display: block; }
+.dots i.on { background: var(--accent); }
+.pad { display: grid; grid-template-columns: repeat(3, 76px); gap: 12px; justify-content: center; }
+.pad button { width: 76px; height: 76px; border-radius: 50%; border: 1px solid var(--grid); background: var(--paper); color: var(--fg); font: 500 28px var(--mono); cursor: pointer; }
+.pad button.ghost { border-color: transparent; background: transparent; font: 500 22px var(--sans); }
+.pad span { display: block; }
+.lk-link { border: 0; background: transparent; color: var(--accent); font: 650 14px var(--sans); min-height: 44px; padding-inline: 12px; cursor: pointer; }
+.lk-reset { text-align: center; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+.lk-reset p { margin: 0; line-height: 1.45; }
+.lk-reset button { min-height: 44px; border-radius: 10px; border: 1px solid var(--grid); background: var(--paper); color: var(--fg); font: 500 14px var(--sans); cursor: pointer; }
+.lk-reset button.danger { background: var(--neg); border-color: var(--neg); color: var(--bg); font-weight: 650; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body class="locked">
+<div class="wrap" id="app">
+  <header>
+    <div>
+      <h1>Mis Cuentas</h1>
+      <div class="status" id="status">Guardado solo en este teléfono</div>
+    </div>
+    <div class="hbtns">
+      <button class="eye ico" id="lockBtn" type="button" aria-label="Bloquear">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      </button>
+      <button class="eye" id="eye" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span id="eyeTxt">Ocultar</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="mtabs" id="mtabs" role="tablist" aria-label="Secciones">
+    <button type="button" role="tab" data-tab="cuentas" aria-selected="true">Cuentas</button>
+    <button type="button" role="tab" data-tab="resumen" aria-selected="false">Resumen</button>
+    <button type="button" role="tab" data-tab="ajustes" aria-selected="false">Ajustes</button>
+  </nav>
+
+  <!-- PESTAÑA CUENTAS -->
+  <section class="panel" id="p-cuentas" role="tabpanel">
+    <div class="card mini">
+      <span>Total general</span>
+      <b id="miniTotal">$ 0</b>
+    </div>
+
+    <div class="card">
+      <button type="button" class="adder-toggle" id="adderToggle" aria-expanded="false" aria-controls="adder">
+        <span>Agregar cuenta</span><span class="chev" id="adderChev" aria-hidden="true">+</span>
+      </button>
+      <form class="adder-body" id="adder" autocomplete="off" hidden>
+        <div class="a-bankline">
+          <label><span>Banco o entidad</span><input id="a-bank" type="text" list="dl-bank" placeholder="Ej. Banco de Chile"></label>
+          <button type="button" class="a-other" id="a-other">Otro banco</button>
+        </div>
+        <div class="chips" id="a-chips" hidden></div>
+        <div class="a-row">
+          <label><span>Tipo de cuenta</span><select id="a-type"></select></label>
+          <label><span>Uso del dinero</span><input id="a-use" type="text" list="dl-use" placeholder="Opcional"></label>
+          <label><span>Monto (CLP)</span><input id="a-amt" type="text" inputmode="numeric" placeholder="0"></label>
+        </div>
+        <button type="submit" class="a-go">Agregar cuenta</button>
+        <p class="a-msg" id="a-msg" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="note" id="note" hidden>
+      <span>Estas filas son de ejemplo. Cámbialas por tus cuentas.</span>
+      <button type="button" id="clearEx">Vaciar</button>
+    </div>
+
+    <div class="sheet" id="sheet">
+      <table id="grid">
+        <colgroup><col style="width:30px"><col style="width:160px"><col style="width:130px"><col style="width:160px"><col style="width:150px"><col style="width:66px"><col style="width:48px"></colgroup>
+        <thead>
+          <tr><th class="sticky1"></th><th class="sticky2">A</th><th>B</th><th>C</th><th>D</th><th>E</th><th></th></tr>
+          <tr>
+            <th class="sticky1"></th>
+            <th class="lbl sticky2">Banco o entidad</th>
+            <th class="lbl r">Monto (CLP)</th>
+            <th class="lbl">Tipo de cuenta</th>
+            <th class="lbl">Uso del dinero</th>
+            <th class="lbl c">Al</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PESTAÑA RESUMEN -->
+  <section class="panel" id="p-resumen" role="tabpanel" hidden>
+    <div class="card grand">
+      <span>Total general</span>
+      <b id="grand">$ 0</b>
+      <small id="count"></small>
+    </div>
+    <div class="card">
+      <div class="sum-body">
+        <div class="mtabs small" id="gtabs" role="tablist" aria-label="Agrupar por">
+          <button type="button" role="tab" data-tab="bank" aria-selected="true">Por banco</button>
+          <button type="button" role="tab" data-tab="type" aria-selected="false">Por tipo</button>
+          <button type="button" role="tab" data-tab="use" aria-selected="false">Por uso</button>
+        </div>
+        <div class="donutwrap" id="donutwrap"><svg id="donut" viewBox="0 0 120 120" role="img" aria-label="Gráfico circular con la distribución de tus montos"></svg></div>
+      </div>
+      <ul class="groups" id="groups"></ul>
+    </div>
+  </section>
+
+  <!-- PESTAÑA AJUSTES -->
+  <section class="panel" id="p-ajustes" role="tabpanel" hidden>
+    <div class="card set">
+      <h2>Copias y Excel</h2>
+      <p>Guarda una copia de vez en cuando. Si borras los datos del navegador, sin copia se pierden.</p>
+      <div class="btnrow">
+        <button type="button" class="btn" id="exCsv">Exportar a Excel (CSV)</button>
+        <button type="button" class="btn" id="exJson">Guardar copia</button>
+        <button type="button" class="btn" id="imJson">Restaurar copia</button>
+      </div>
+      <input type="file" id="imFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="card set">
+      <h2>Seguridad</h2>
+      <p>El PIN aleja a curiosos, pero no cifra los datos. La hoja se bloquea sola si sales por más de 30 segundos.</p>
+      <div class="btnrow"><button type="button" class="btn" id="chPin">Cambiar PIN</button></div>
+    </div>
+    <div class="card set">
+      <h2>Sobre esta hoja</h2>
+      <p>Todo en pesos chilenos. Los datos se guardan solo en este teléfono: no se envían a ningún lado ni hay conexión con bancos. Solo anotas montos a mano.</p>
+    </div>
+  </section>
+</div>
+
+<datalist id="dl-bank">
+  <option value="Banco Estado"><option value="Banco de Chile"><option value="Banco Santander"><option value="BCI"><option value="Scotiabank"><option value="Banco Itaú"><option value="Banco Falabella"><option value="Banco Ripley"><option value="Banco Security"><option value="Banco BICE"><option value="Banco Consorcio"><option value="Coopeuch"><option value="Tenpo"><option value="Mach"><option value="Mercado Pago"><option value="Efectivo">
+</datalist>
+<datalist id="dl-use">
+  <option value="Gastos diarios"><option value="Arriendo y cuentas"><option value="Ahorro"><option value="Emergencias"><option value="Inversión"><option value="Vacaciones"><option value="Deudas y créditos"><option value="Impuestos">
+</datalist>
+
+<div class="lock" id="lock" role="dialog" aria-modal="true" aria-labelledby="lk-title">
+  <div class="lk-box">
+    <div class="lk-title" id="lk-title">Mis Cuentas</div>
+    <p class="lk-msg" id="lk-msg" aria-live="polite"></p>
+    <div class="dots" id="lk-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="pad" id="lk-pad"></div>
+    <button type="button" class="lk-link" id="lk-link"></button>
+    <div class="lk-reset" id="lk-reset" hidden>
+      <p>Esto borra todas las cuentas guardadas en este teléfono y te deja crear un PIN nuevo. Si tienes una copia guardada, podrás restaurarla después.</p>
+      <button type="button" class="danger" id="lk-wipe">Borrar todo y crear PIN nuevo</button>
+      <button type="button" id="lk-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastTxt"></span><button type="button" id="undo">Deshacer</button></div>
+
+<script>
+(function () {
+  var TYPES = ["Cuenta corriente", "Cuenta vista", "Cuenta RUT", "Cuenta de ahorro", "Depósito a plazo", "Fondo mutuo o inversión", "Billetera digital", "Efectivo", "Otra"];
+  var LS_DATA = "mis-cuentas-v1", LS_HIDE = "mis-cuentas-hide", LS_BANK = "mis-cuentas-lastbank";
+  var EMPTY_LABEL = { bank: "Sin banco", type: "Sin tipo de cuenta", use: "Sin uso asignado" };
+  var state = { rows: [], example: false };
+  var undoRow = null, toastTimer = null, hidden = false, gtab = "bank";
+
+  function $(id) { return document.getElementById(id); }
+  function newId() { return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function today() { var d = new Date(); var p = function (n) { return (n < 10 ? "0" : "") + n; }; return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); }
+  function fmtDate(iso) {
+    if (!iso) return "";
+    var a = iso.split("-"); if (a.length !== 3) return "";
+    return new Date(+a[0], +a[1] - 1, +a[2]).toLocaleDateString("es-CL", { day: "numeric", month: "short" }).replace(".", "");
+  }
+  var nf = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
+  function fmt(n) { return (typeof n === "number" && !isNaN(n)) ? nf.format(n) : ""; }
+  function money(n) { return (n < 0 ? "-$ " : "$ ") + nf.format(Math.abs(n)); }
+  function parse(s) {
+    s = String(s).trim().replace(/[^\d.,-]/g, "");
+    if (!s) return null;
+    if (s.indexOf(",") > -1) s = s.replace(/\./g, "").replace(",", ".");
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    var n = parseFloat(s);
+    return isNaN(n) ? null : Math.round(n);
+  }
+  function norm(r) {
+    return { id: r.id || newId(), bank: r.bank !== undefined ? r.bank : (r.name || ""), type: r.type || "", use: r.use || "", amt: typeof r.amt === "number" ? r.amt : null, date: r.date || "" };
+  }
+  function examples() {
+    return [
+      { id: newId(), bank: "Banco Estado", type: "Cuenta RUT", use: "Gastos diarios", amt: 350000, date: today() },
+      { id: newId(), bank: "Banco de Chile", type: "Cuenta corriente", use: "Arriendo y cuentas", amt: 850000, date: today() },
+      { id: newId(), bank: "Banco de Chile", type: "Cuenta de ahorro", use: "Emergencias", amt: 2300000, date: today() },
+      { id: newId(), bank: "Banco Santander", type: "Fondo mutuo o inversión", use: "Inversión", amt: 1200000, date: today() }
+    ];
+  }
+
+  // ---- Agrupar las cuentas por banco (mantiene el orden dentro de cada banco) ----
+  function bankKey(r) { return (r.bank || "").trim().toLowerCase(); }
+  function regroup() {
+    var order = [], groups = {};
+    state.rows.forEach(function (r) {
+      var k = bankKey(r);
+      if (!(k in groups)) { groups[k] = []; order.push(k); }
+      groups[k].push(r);
+    });
+    var ei = order.indexOf(""); if (ei > -1) { order.splice(ei, 1); order.push(""); }
+    var out = [];
+    order.forEach(function (k) { out = out.concat(groups[k]); });
+    var changed = out.some(function (r, i) { return r !== state.rows[i]; });
+    state.rows = out;
+    return changed;
+  }
+
+  function lsSave() { try { if (!state.example) localStorage.setItem(LS_DATA, JSON.stringify(state.rows)); } catch (e) {} }
+  function lsLoad() { try { var v = JSON.parse(localStorage.getItem(LS_DATA) || "null"); return Array.isArray(v) ? v.map(norm) : null; } catch (e) { return null; } }
+  function schedule() {
+    if (state.example) { state.example = false; $("note").hidden = true; }
+    lsSave();
+  }
+
+  // ---- Totales, gráfico y resumen ----
+  function colorOf(i) { return "var(--c" + (i < 5 ? i + 1 : 6) + ")"; }
+  function drawDonut(list) {
+    var svg = $("donut"), NS = "http://www.w3.org/2000/svg", R = 46, C = 2 * Math.PI * R;
+    svg.textContent = "";
+    var pos = list.filter(function (x) { return x.sum > 0; });
+    var posTotal = pos.reduce(function (a, x) { return a + x.sum; }, 0);
+    $("donutwrap").hidden = hidden || posTotal <= 0;
+    if (hidden || posTotal <= 0) return;
+    function ring(color, dash, off) {
+      var c = document.createElementNS(NS, "circle");
+      c.setAttribute("cx", "60"); c.setAttribute("cy", "60"); c.setAttribute("r", String(R)); c.setAttribute("fill", "none"); c.setAttribute("stroke-width", "18");
+      c.style.stroke = color;
+      if (dash !== null) { c.setAttribute("stroke-dasharray", dash + " " + (C - dash)); c.setAttribute("stroke-dashoffset", String(-off)); c.setAttribute("transform", "rotate(-90 60 60)"); }
+      svg.appendChild(c);
+    }
+    ring("var(--head)", null, 0);
+    var segs = [], rest = 0;
+    pos.forEach(function (x, i) { if (i < 5) segs.push({ sum: x.sum, color: colorOf(i) }); else rest += x.sum; });
+    if (rest > 0) segs.push({ sum: rest, color: colorOf(5) });
+    var cum = 0;
+    segs.forEach(function (s) {
+      var len = C * s.sum / posTotal;
+      ring(s.color, segs.length > 1 ? Math.max(len - 1.5, 0.5) : len, cum);
+      cum += len;
+    });
+  }
+  function renderTotals() {
+    var total = 0, n = 0;
+    state.rows.forEach(function (r) { if (typeof r.amt === "number") { total += r.amt; n++; } });
+    var txt = hidden ? "$ ••••••" : money(total);
+    ["grand", "miniTotal"].forEach(function (id) { var el = $(id); el.textContent = txt; el.classList.toggle("neg", !hidden && total < 0); });
+    $("count").textContent = n + (n === 1 ? " cuenta con monto" : " cuentas con monto");
+
+    var map = {}, order = [];
+    state.rows.forEach(function (r) {
+      if (typeof r.amt !== "number") return;
+      var label = (r[gtab] || "").trim(), key = label.toLowerCase();
+      if (!(key in map)) { map[key] = { label: label || EMPTY_LABEL[gtab], sum: 0, count: 0 }; order.push(key); }
+      map[key].sum += r.amt; map[key].count++;
+    });
+    var list = order.map(function (k) { return map[k]; }).sort(function (a, b) { return b.sum - a.sum; });
+    var posTotal = list.reduce(function (a, x) { return a + (x.sum > 0 ? x.sum : 0); }, 0);
+    var ul = $("groups"); ul.textContent = "";
+    drawDonut(list);
+    if (!list.length) {
+      var e = document.createElement("li"); e.className = "none"; e.textContent = "Anota un monto en la pestaña Cuentas para ver el resumen.";
+      ul.appendChild(e); return;
+    }
+    var maxAbs = Math.max.apply(null, list.map(function (x) { return Math.abs(x.sum); })) || 1;
+    list.forEach(function (x, i) {
+      var li = document.createElement("li");
+      var dot = document.createElement("span"); dot.className = "g-dot"; dot.style.background = colorOf(i);
+      var nm = document.createElement("div"); nm.className = "g-name"; nm.textContent = x.label;
+      var sm = document.createElement("small"); sm.textContent = x.count + (x.count === 1 ? " cuenta" : " cuentas"); nm.appendChild(sm);
+      var am = document.createElement("div"); am.className = "g-amt" + (!hidden && x.sum < 0 ? " neg" : "");
+      am.textContent = hidden ? "••••••" : money(x.sum);
+      if (!hidden && x.sum > 0 && posTotal > 0) { var pc = document.createElement("small"); pc.textContent = Math.round(x.sum / posTotal * 100) + " %"; am.appendChild(pc); }
+      li.appendChild(dot); li.appendChild(nm); li.appendChild(am);
+      if (!hidden) {
+        var bar = document.createElement("div"); bar.className = "g-bar";
+        var b = document.createElement("i"); b.style.width = Math.max(2, Math.round(Math.abs(x.sum) / maxAbs * 100)) + "%";
+        bar.appendChild(b); li.appendChild(bar);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  // ---- Formulario plegable ----
+  function renderChips() {
+    var box = $("a-chips"); box.textContent = "";
+    if (!state.example) {
+      var seen = {};
+      state.rows.forEach(function (r) {
+        var b = (r.bank || "").trim(), k = b.toLowerCase();
+        if (!b || seen[k]) return; seen[k] = 1;
+        var btn = document.createElement("button"); btn.type = "button"; btn.className = "chip"; btn.textContent = b;
+        btn.addEventListener("click", function () { $("a-bank").value = b; $("a-type").focus(); });
+        box.appendChild(btn);
+      });
+    }
+    box.hidden = !box.children.length;
+  }
+  function setAdder(open) {
+    $("adder").hidden = !open;
+    $("adderToggle").setAttribute("aria-expanded", String(open));
+    $("adderChev").textContent = open ? "−" : "+";
+    if (open) { setTimeout(function () { try { ($("a-bank").value ? $("a-type") : $("a-bank")).focus(); } catch (e) {} }, 0); }
+  }
+  (function () {
+    var s = $("a-type"), o = document.createElement("option"); o.value = ""; o.textContent = "Elegir tipo"; s.appendChild(o);
+    TYPES.forEach(function (t) { var x = document.createElement("option"); x.value = t; x.textContent = t; s.appendChild(x); });
+  })();
+  $("adderToggle").addEventListener("click", function () { setAdder($("adder").hidden); });
+  $("adder").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var bank = $("a-bank").value.trim(), type = $("a-type").value, use = $("a-use").value.trim(), amt = parse($("a-amt").value), msg = $("a-msg");
+    if (!bank) { msg.textContent = "Escribe primero el banco o entidad."; $("a-bank").focus(); return; }
+    if (!type && amt === null) { msg.textContent = "Elige el tipo de cuenta o anota un monto."; return; }
+    var key = bank.toLowerCase();
+    for (var i = 0; i < state.rows.length; i++) { if (bankKey(state.rows[i]) === key) { bank = state.rows[i].bank.trim(); break; } }
+    if (state.example) { state.rows = []; state.example = false; }
+    var row = { id: newId(), bank: bank, type: type, use: use, amt: amt, date: amt === null ? "" : today() };
+    state.rows.push(row); regroup();
+    try { localStorage.setItem(LS_BANK, bank); } catch (x) {}
+    render(); schedule();
+    $("a-type").value = ""; $("a-use").value = ""; $("a-amt").value = "";
+    msg.textContent = "Agregada bajo " + bank + " (fila " + (state.rows.indexOf(row) + 1) + "). Puedes anotar otra del mismo banco o tocar “Otro banco”.";
+    $("a-type").focus();
+  });
+  $("a-other").addEventListener("click", function () { $("a-bank").value = ""; $("a-msg").textContent = ""; $("a-bank").focus(); });
+  $("a-amt").addEventListener("blur", function (e) { var n = parse(e.target.value); e.target.value = n === null ? "" : fmt(n); });
+  $("a-amt").addEventListener("focus", function (e) { setTimeout(function () { try { e.target.select(); } catch (x) {} }, 0); });
+
+  // ---- Planilla ----
+  function mkInput(r, f, label, ph, list) {
+    var td = document.createElement("td"), inp = document.createElement("input");
+    inp.type = "text"; inp.value = r[f] || ""; inp.dataset.f = f; inp.placeholder = ph;
+    inp.setAttribute("aria-label", label); inp.autocomplete = "off";
+    if (list) inp.setAttribute("list", list);
+    td.appendChild(inp); return td;
+  }
+  function render() {
+    var tb = $("rows"); tb.textContent = "";
+    state.rows.forEach(function (r, i) {
+      var tr = document.createElement("tr"); tr.dataset.id = r.id;
+      if (i > 0 && bankKey(state.rows[i - 1]) !== bankKey(r)) tr.className = "gstart";
+      var rn = document.createElement("td"); rn.className = "rn sticky1"; rn.textContent = i + 1; tr.appendChild(rn);
+
+      var tb1 = mkInput(r, "bank", "Banco o entidad, fila " + (i + 1), "Banco o entidad", "dl-bank");
+      tb1.className = "bank sticky2"; tr.appendChild(tb1);
+
+      var ta = document.createElement("td"), am = document.createElement("input");
+      am.type = "text"; am.inputMode = "numeric"; am.className = "amt"; am.dataset.f = "amt"; am.placeholder = "0";
+      am.setAttribute("aria-label", "Monto en pesos, fila " + (i + 1)); am.autocomplete = "off";
+      am.value = fmt(r.amt); if (typeof r.amt === "number" && r.amt < 0) am.classList.add("neg");
+      ta.appendChild(am); tr.appendChild(ta);
+
+      var tt = document.createElement("td"), sel = document.createElement("select");
+      sel.dataset.f = "type"; sel.setAttribute("aria-label", "Tipo de cuenta, fila " + (i + 1));
+      var o0 = document.createElement("option"); o0.value = ""; o0.textContent = "Tipo de cuenta"; sel.appendChild(o0);
+      var list = TYPES.slice(); if (r.type && list.indexOf(r.type) < 0) list.push(r.type);
+      list.forEach(function (t) { var o = document.createElement("option"); o.value = t; o.textContent = t; if (t === r.type) o.selected = true; sel.appendChild(o); });
+      sel.className = r.type ? "" : "empty";
+      tt.appendChild(sel); tr.appendChild(tt);
+
+      tr.appendChild(mkInput(r, "use", "Uso del dinero, fila " + (i + 1), "Uso del dinero", "dl-use"));
+
+      var td = document.createElement("td"); td.className = "date"; td.textContent = fmtDate(r.date); tr.appendChild(td);
+
+      var tx = document.createElement("td"); tx.className = "del";
+      var b = document.createElement("button"); b.type = "button"; b.dataset.f = "del"; b.textContent = "×"; b.setAttribute("aria-label", "Eliminar fila " + (i + 1));
+      tx.appendChild(b); tr.appendChild(tx);
+      tb.appendChild(tr);
+    });
+    var add = document.createElement("tr"); add.className = "add";
+    var c = document.createElement("td"); c.colSpan = 7;
+    var ab = document.createElement("button"); ab.type = "button"; ab.id = "addRow"; ab.textContent = "+ Agregar cuenta";
+    c.appendChild(ab); add.appendChild(c); tb.appendChild(add);
+    $("note").hidden = !state.example;
+    renderTotals(); renderChips();
+  }
+  function rowOf(el) { var tr = el.closest("tr[data-id]"); if (!tr) return null; var id = tr.dataset.id; return { tr: tr, r: state.rows.filter(function (x) { return x.id === id; })[0] }; }
+
+  $("grid").addEventListener("input", function (e) {
+    var f = e.target.dataset.f, o = rowOf(e.target); if (!o || !o.r) return;
+    if (f === "bank" || f === "use") o.r[f] = e.target.value;
+    else if (f === "amt") {
+      o.r.amt = parse(e.target.value); o.r.date = today();
+      e.target.classList.toggle("neg", typeof o.r.amt === "number" && o.r.amt < 0);
+      o.tr.querySelector(".date").textContent = fmtDate(o.r.date);
+    } else return;
+    renderTotals(); schedule();
+  });
+  $("grid").addEventListener("change", function (e) {
+    var f = e.target.dataset.f, o = rowOf(e.target); if (!o || !o.r) return;
+    if (f === "type") { o.r.type = e.target.value; e.target.className = o.r.type ? "" : "empty"; renderTotals(); schedule(); }
+    else if (f === "bank") { o.r.bank = e.target.value; if (regroup()) render(); else renderChips(); renderTotals(); schedule(); }
+  });
+  $("grid").addEventListener("focusout", function (e) {
+    if (e.target.dataset.f !== "amt") return;
+    var o = rowOf(e.target); if (!o || !o.r) return;
+    e.target.value = fmt(o.r.amt);
+  });
+  $("grid").addEventListener("focusin", function (e) {
+    if (e.target.dataset.f === "amt") setTimeout(function () { try { e.target.select(); } catch (x) {} }, 0);
+  });
+  $("grid").addEventListener("click", function (e) {
+    if (e.target.id === "addRow") { setAdder(true); try { $("adderToggle").scrollIntoView(); } catch (x) {} return; }
+    if (e.target.dataset.f === "del") {
+      var o = rowOf(e.target); if (!o || !o.r) return;
+      var idx = state.rows.indexOf(o.r);
+      undoRow = { row: o.r, idx: idx };
+      state.rows.splice(idx, 1); render(); schedule(); showToast("Fila eliminada", true);
+    }
+  });
+  $("undo").addEventListener("click", function () {
+    if (!undoRow) return;
+    state.rows.splice(Math.min(undoRow.idx, state.rows.length), 0, undoRow.row);
+    undoRow = null; $("toast").hidden = true; regroup(); render(); schedule();
+  });
+  function showToast(t, withUndo) {
+    $("toastTxt").textContent = t; $("undo").hidden = !withUndo; $("toast").hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { $("toast").hidden = true; undoRow = null; }, 6000);
+  }
+  $("clearEx").addEventListener("click", function () {
+    state.rows = [{ id: newId(), bank: "", type: "", use: "", amt: null, date: "" }]; state.example = true; schedule(); render();
+  });
+
+  // ---- Pestañas ----
+  function showTab(t) {
+    ["cuentas", "resumen", "ajustes"].forEach(function (n) { $("p-" + n).hidden = n !== t; });
+    Array.prototype.forEach.call($("mtabs").children, function (b) { b.setAttribute("aria-selected", String(b.dataset.tab === t)); });
+    window.scrollTo(0, 0);
+  }
+  $("mtabs").addEventListener("click", function (e) { var t = e.target.dataset && e.target.dataset.tab; if (t) showTab(t); });
+  $("gtabs").addEventListener("click", function (e) {
+    var t = e.target.dataset && e.target.dataset.tab; if (!t) return;
+    gtab = t;
+    Array.prototype.forEach.call($("gtabs").children, function (b) { b.setAttribute("aria-selected", String(b.dataset.tab === gtab)); });
+    renderTotals();
+  });
+
+  function applyHide() {
+    document.body.classList.toggle("hide", hidden);
+    $("eye").setAttribute("aria-pressed", String(hidden));
+    $("eyeTxt").textContent = hidden ? "Mostrar" : "Ocultar";
+    $("eye").setAttribute("aria-label", hidden ? "Mostrar montos" : "Ocultar montos");
+    renderTotals();
+  }
+  $("eye").addEventListener("click", function () {
+    hidden = !hidden; try { localStorage.setItem(LS_HIDE, hidden ? "1" : "0"); } catch (e) {}
+    applyHide();
+  });
+
+  // ---- Copias y exportación ----
+  function download(name, type, text) {
+    var blob = new Blob([text], { type: type }), a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function q(v) { v = String(v == null ? "" : v); return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  $("exCsv").addEventListener("click", function () {
+    var lines = ["Banco o entidad,Tipo de cuenta,Uso del dinero,Monto (CLP),Actualizado"];
+    state.rows.forEach(function (r) { lines.push([q(r.bank), q(r.type), q(r.use), r.amt == null ? "" : r.amt, q(r.date)].join(",")); });
+    download("mis-cuentas-" + today() + ".csv", "text/csv;charset=utf-8", "﻿" + lines.join("\n"));
+  });
+  $("exJson").addEventListener("click", function () {
+    download("mis-cuentas-copia-" + today() + ".json", "application/json", JSON.stringify({ rows: state.rows }, null, 2));
+  });
+  $("imJson").addEventListener("click", function () { $("imFile").click(); });
+  $("imFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var d = JSON.parse(fr.result), rows = Array.isArray(d) ? d : d.rows;
+        if (!Array.isArray(rows)) throw 0;
+        state = { rows: rows.map(norm), example: false }; regroup(); render(); schedule();
+        showToast("Copia restaurada", false);
+      } catch (x) { showToast("Ese archivo no es una copia válida", false); }
+      e.target.value = "";
+    };
+    fr.readAsText(f);
+  });
+
+  // ---- PIN de acceso (evita curiosos; no cifra los datos) ----
+  var PIN_KEY = "mis-cuentas-pin", FAIL_KEY = "mis-cuentas-fail";
+  var mode = "unlock", entry = "", firstPin = "", busy = false, changing = false, hiddenAt = 0, tickTimer = null;
+  function isLocked() { return document.body.classList.contains("locked"); }
+  function getPin() { try { return JSON.parse(localStorage.getItem(PIN_KEY) || "null"); } catch (e) { return null; } }
+  function getFail() { try { return JSON.parse(localStorage.getItem(FAIL_KEY) || "null") || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
+  function setFail(f) { try { localStorage.setItem(FAIL_KEY, JSON.stringify(f)); } catch (e) {} }
+  function lockoutLeft() { return Math.max(0, Math.ceil((getFail().until - Date.now()) / 1000)); }
+  async function hashPin(pin, salt) {
+    var data = new TextEncoder().encode(salt + ":" + pin);
+    if (window.crypto && window.crypto.subtle) {
+      var b = await window.crypto.subtle.digest("SHA-256", data);
+      return Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+    }
+    var h = 5381; for (var i = 0; i < data.length; i++) { h = ((h << 5) + h + data[i]) | 0; }
+    return "f" + h;
+  }
+  function newSalt() {
+    var a = new Uint8Array(12);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(a); else for (var i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 256);
+    return Array.prototype.map.call(a, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+  }
+  function lkMsg(t, err) { var m = $("lk-msg"); m.textContent = t; m.className = "lk-msg" + (err ? " err" : ""); }
+  function lkDots() { Array.prototype.forEach.call($("lk-dots").children, function (d, i) { d.className = i < entry.length ? "on" : ""; }); }
+  function tick() {
+    clearTimeout(tickTimer);
+    if (mode !== "unlock") return;
+    var left = lockoutLeft();
+    if (left > 0) { lkMsg("Demasiados intentos. Espera " + left + " s.", true); tickTimer = setTimeout(tick, 1000); }
+    else if ($("lk-msg").className.indexOf("err") > -1 && $("lk-msg").textContent.indexOf("Espera") > -1) lkMsg("Escribe tu PIN");
+  }
+  var MSG = { setup1: "Crea un PIN de 4 dígitos", setup2: "Repite el PIN", unlock: "Escribe tu PIN", change1: "Elige un PIN nuevo", change2: "Repite el PIN nuevo" };
+  function enterMode(m) {
+    mode = m; entry = ""; firstPin = m.slice(-1) === "1" ? "" : firstPin; busy = false; lkDots();
+    document.body.classList.add("locked"); $("lk-reset").hidden = true;
+    lkMsg(MSG[m]);
+    var link = $("lk-link");
+    if (m === "unlock") { link.hidden = false; link.textContent = "Olvidé mi PIN"; }
+    else if (m === "change1" || m === "change2") { link.hidden = false; link.textContent = "Cancelar"; }
+    else link.hidden = true;
+    tick();
+  }
+  function unlockUI() { entry = ""; busy = false; changing = false; lkDots(); document.body.classList.remove("locked"); window.scrollTo(0, 0); }
+  function press(d) {
+    if (busy || !isLocked()) return;
+    if (mode === "unlock" && lockoutLeft() > 0) return;
+    if (d === "del") { entry = entry.slice(0, -1); lkDots(); return; }
+    if (entry.length >= 4) return;
+    entry += d; lkDots();
+    if (entry.length === 4) { busy = true; setTimeout(complete, 120); }
+  }
+  async function complete() {
+    var pin = entry;
+    try {
+      if (mode === "setup1" || mode === "change1") { firstPin = pin; enterMode(mode === "setup1" ? "setup2" : "change2"); return; }
+      if (mode === "setup2" || mode === "change2") {
+        if (pin !== firstPin) { var back = mode === "setup2" ? "setup1" : "change1"; enterMode(back); lkMsg("Los PIN no coinciden. Intenta de nuevo.", true); return; }
+        var salt = newSalt(), h = await hashPin(pin, salt);
+        try { localStorage.setItem(PIN_KEY, JSON.stringify({ salt: salt, hash: h })); } catch (e) { lkMsg("No se pudo guardar el PIN en este navegador.", true); busy = false; return; }
+        setFail({ n: 0, until: 0 }); unlockUI(); return;
+      }
+      var p = getPin();
+      if (!p) { enterMode("setup1"); return; }
+      var hh = await hashPin(pin, p.salt);
+      if (hh === p.hash) { setFail({ n: 0, until: 0 }); unlockUI(); return; }
+      var f = getFail(); f.n += 1;
+      if (f.n % 5 === 0) f.until = Date.now() + Math.min(30000 * Math.pow(2, f.n / 5 - 1), 900000);
+      setFail(f); entry = ""; busy = false; lkDots();
+      if (lockoutLeft() > 0) tick(); else lkMsg("PIN incorrecto. Intentos fallidos: " + (f.n % 5) + " de 5.", true);
+    } catch (e) { entry = ""; busy = false; lkDots(); lkMsg("Ocurrió un error. Intenta de nuevo.", true); }
+  }
+  (function buildPad() {
+    var pad = $("lk-pad");
+    function key(label, k, cls, aria) {
+      var b = document.createElement("button"); b.type = "button"; b.dataset.k = k; b.textContent = label; if (cls) b.className = cls; if (aria) b.setAttribute("aria-label", aria);
+      pad.appendChild(b);
+    }
+    for (var i = 1; i <= 9; i++) key(String(i), String(i));
+    pad.appendChild(document.createElement("span"));
+    key("0", "0");
+    key("⌫", "del", "ghost", "Borrar");
+  })();
+  $("lk-pad").addEventListener("click", function (e) { var k = e.target.dataset && e.target.dataset.k; if (k !== undefined) press(k); });
+  document.addEventListener("keydown", function (e) {
+    if (!isLocked()) return;
+    if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === "Backspace") press("del");
+  });
+  $("lk-link").addEventListener("click", function () {
+    if (mode === "unlock") $("lk-reset").hidden = false;
+    else { changing = false; unlockUI(); }
+  });
+  $("lk-cancel").addEventListener("click", function () { $("lk-reset").hidden = true; });
+  $("lk-wipe").addEventListener("click", function () {
+    try { localStorage.removeItem(LS_DATA); localStorage.removeItem(LS_BANK); localStorage.removeItem(PIN_KEY); localStorage.removeItem(FAIL_KEY); } catch (e) {}
+    state = { rows: examples(), example: true }; $("a-bank").value = ""; render(); setStatus("local");
+    enterMode("setup1");
+  });
+  $("lockBtn").addEventListener("click", function () { if (getPin()) enterMode("unlock"); else enterMode("setup1"); });
+  $("chPin").addEventListener("click", function () { changing = true; enterMode("change1"); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (hiddenAt && Date.now() - hiddenAt > 30000 && getPin() && !isLocked()) enterMode("unlock");
+  });
+  function startLock() { enterMode(getPin() ? "unlock" : "setup1"); }
+  function setStatus() { $("status").textContent = "Guardado solo en este teléfono"; }
+
+  // Arranque
+  try { hidden = localStorage.getItem(LS_HIDE) === "1"; } catch (e) {}
+  var local = lsLoad();
+  if (local && local.length) state = { rows: local, example: false };
+  else state = { rows: examples(), example: true };
+  regroup();
+  try { $("a-bank").value = localStorage.getItem(LS_BANK) || ""; } catch (e) {}
+  render(); applyHide(); setStatus(); startLock();
+})();
+</script>
+</body>
+</html>
